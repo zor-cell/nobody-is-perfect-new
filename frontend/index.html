@@ -7,13 +7,18 @@
   <title>Title</title>
   <link rel="stylesheet" href="style.css">
 
-  <!-- Load React libraries with CDN-->
+  <!-- Load React.js with CDN-->
   <script src="https://unpkg.com/react@16/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@16/umd/react-dom.development.js" crossorigin></script>
-  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- Load socket.io with CDN-->
+  <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
 </head>
 <body>
   <div id="container"></div>
-  <script type="text/babel" src="app.js"></script>
+  <script type="javscript" src="socket.js"></script>
+  <script type="module" src="test.js"> </script>
+  <script type="text/babel" data-type="module" src="app.js"></script>
 </body>
 </html>
