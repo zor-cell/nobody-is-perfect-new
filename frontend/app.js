@@ -1,6 +1,7 @@
 import * as events from "./events.js";
 
 function App() {
+    const [log, setLog] = React.useState([]);
     const [socket, setSocket] = React.useState(null);
     const [socketConnected, setSocketConnected] = React.useState(false);
 
@@ -13,10 +14,11 @@ function App() {
     const [users, setUsers] = React.useState([]);
     const [gameMaster, setGameMaster] = React.useState(null);
     const [isGameMaster, setIsGameMaster] = React.useState(false);
+    const [question, setQuestion] = React.useState(null);
 
     //initialise socket connection
     React.useEffect(() => {
-        console.log("init")
+        setLog([...log, "init"])
 
         const socket = io("http://localhost:5100");
         setSocket(socket);
@@ -24,22 +26,24 @@ function App() {
         socket.on('connect', () => {
             setSocketConnected(socket.connected);
     
-            socket.on('set-users', (users) => {
+            socket.on('setUsers', (users) => {
                 setUsers(users);
             });
     
-            socket.on('is-gamemaster', () => {
+            socket.on('isGamemaster', () => {
                 setIsGameMaster(true);
             });
     
-            socket.on('set-gamemaster', (gameMaster) => {
+            socket.on('setGamemaster', (gameMaster) => {
                 setGameMaster(gameMaster);
             });
         });
     }, []);
 
     function onChangeUsername(event) {
-        events.createUsername(socket, event.target.value);
+        const message = events.createUsername(socket, event.target.value);
+        console.log(message)
+        setLog([...log, message]);
 
         setUsername(event.target.value);
     }
@@ -49,21 +53,29 @@ function App() {
     }
 
     function onClickCreateRoom(event) {
-        events.createRoom(socket, setRoomId);
+        const message = events.createRoom(socket, setRoomId);
+        setLog([...log, message]);
     }
 
     function onClickJoinRoom(event) {
         if(joinRoomId == "") return;
 
-        events.joinRoom(socket, joinRoomId, setRoomId);
+        const message = events.joinRoom(socket, joinRoomId, setRoomId);
+        setLog([...log, message]);
     }
 
     function onClickLeaveRoom(event) {
-        events.leaveRoom(socket, roomId, setRoomId);
+        const message = events.leaveRoom(socket, roomId, setRoomId);
+        setLog([...log, message]);
     }
 
-    function handleSubmit(event) {
+    function onChangeQuestion(event) {
+        setQuestion(event.target.value);
+    }
 
+    function onClickQuestion(event) {
+        const message = events.showQuestion(socket, question);
+        setLog([...log, message]);
     }
 
     return (
@@ -106,14 +118,24 @@ function App() {
             {isGameMaster 
             ? <div className="flex-container">
                 <h3>You are the game master!</h3>
-                <input type="text" placeholder="Enter question"></input>
-                <button>Submit</button>
+                <input onChange={onChangeQuestion} type="text" placeholder="Enter question"></input>
+                <button onClick={onClickQuestion}>Submit</button>
             </div>
             : <div className="flex-container">
                 <h3>Wait for the game master, {gameMaster}!</h3>
             </div>}
             <button onClick={onClickLeaveRoom}>Leave Room</button>
         </section>}
+
+        <section className="main-container">
+            <div id="log">
+                <ul>
+                    {log.map((entry, key) => {
+                        return <li key={key}>{entry}</li>
+                    })}
+                </ul>
+            </div>
+        </section>
       </main>
     );
 }

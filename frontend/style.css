@@ -138,3 +138,10 @@ table td {
 
     text-align: center;
 }
+
+#log {
+    width: max-content;
+    height: 200px;
+
+    overflow-y: auto;
+}

@@ -25,11 +25,11 @@ io.on("connection", socket => {
         socket.join(roomId);
 
         //update users in room
-        io.sockets.in(roomId).emit('set-users', getUsersInRoom(roomId));
+        io.sockets.in(roomId).emit('setUsers', getUsersInRoom(roomId));
 
         //set gamemaster
         gameMaster = socket;
-        socket.emit('is-gamemaster');
+        socket.emit('isGamemaster');
         io.sockets.in(roomId).emit('set-gamemaster', gameMaster.data.username);
 
         isSuccessCB(true);
@@ -43,8 +43,8 @@ io.on("connection", socket => {
         }
 
         socket.join(roomId);
-        io.sockets.in(roomId).emit('set-users', getUsersInRoom(roomId));
-        io.sockets.in(roomId).emit('set-gamemaster', gameMaster.data.username);
+        io.sockets.in(roomId).emit('setUsers', getUsersInRoom(roomId));
+        io.sockets.in(roomId).emit('setGamemaster', gameMaster.data.username);
 
         isSuccessCB(true);
     });
@@ -58,7 +58,7 @@ io.on("connection", socket => {
 
         let roomId = rooms[1]; //[0] is socket id
         socket.leave(roomId);
-        io.sockets.in(roomId).emit('set-users', getUsersInRoom(roomId));
+        io.sockets.in(roomId).emit('setUsers', getUsersInRoom(roomId));
 
         isSuccessCB(true);
     });
