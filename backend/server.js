@@ -1,23 +1,19 @@
 const { Server } = require("socket.io");
 
+let gameMaster = null;
+
 const io = new Server(5100, {
     cors: {
         origin: ['http://localhost:8080', 'http://127.0.0.1:5000'],
     }
 });
 
-const RoomConfig = {
-    usernames: {}, //key: socket id, value: username
-};
-
 io.on("connection", socket => {
     socket.on('setUsername', (username, isSuccessCB) => {
         //set username
-        RoomConfig.usernames[socket.id] = username;
+        socket.data.username = username;
 
-        isSuccessCB(true, RoomConfig.usernames);
-
-        console.log(RoomConfig.usernames);
+        isSuccessCB(true, null);
     });
 
     socket.on('createRoom', (roomId, isSuccessCB) => {
@@ -27,6 +23,14 @@ io.on("connection", socket => {
         }
 
         socket.join(roomId);
+
+        //update users in room
+        io.sockets.in(roomId).emit('set-users', getUsersInRoom(roomId));
+
+        //set gamemaster
+        gameMaster = socket;
+        socket.emit('is-gamemaster');
+        io.sockets.in(roomId).emit('set-gamemaster', gameMaster.data.username);
 
         isSuccessCB(true);
     });
@@ -39,6 +43,8 @@ io.on("connection", socket => {
         }
 
         socket.join(roomId);
+        io.sockets.in(roomId).emit('set-users', getUsersInRoom(roomId));
+        io.sockets.in(roomId).emit('set-gamemaster', gameMaster.data.username);
 
         isSuccessCB(true);
     });
@@ -50,9 +56,23 @@ io.on("connection", socket => {
             return;
         }
 
-        let room = rooms[1]; //[0] is socket id
-        socket.leave(room);
+        let roomId = rooms[1]; //[0] is socket id
+        socket.leave(roomId);
+        io.sockets.in(roomId).emit('set-users', getUsersInRoom(roomId));
 
         isSuccessCB(true);
     });
 });
+
+
+function getUsersInRoom(roomId) {
+    if(io.sockets.adapter.rooms.get(roomId) == undefined) return [];
+
+    const users = [...io.sockets.adapter.rooms.get(roomId)];
+
+    const usernames = users.map(user => {
+        return io.sockets.sockets.get(user).data.username;
+    })
+
+    return usernames;
+}
