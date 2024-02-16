@@ -30,7 +30,7 @@ io.on("connection", socket => {
         //set gamemaster
         gameMaster = socket;
         socket.emit('isGamemaster');
-        io.sockets.in(roomId).emit('set-gamemaster', gameMaster.data.username);
+        io.sockets.in(roomId).emit('setGamemaster', gameMaster.data.username);
 
         isSuccessCB(true);
     });
