@@ -24,4 +24,5 @@ Start local development server: **backend/npm run serve**.
 [ ] show all active users
 [ ] heroku url in .env file
 [ ] store socket data in localhost
-[ ]  
+[ ] colored log entries (with each entry being js object)
+[ ] prompt submitting

@@ -6,6 +6,8 @@ function App() {
 
     //input components
     const [username, setUsername] = React.useState("");
+    const [roomIdInput, setRoomIdInput] = React.useState(null);
+    //final room Id after event
     const [roomId, setRoomId] = React.useState(null);
 
     const roomRef = React.useRef();
@@ -22,12 +24,21 @@ function App() {
                 roomRef.current.setUsersEvent(users);
             });
     
-            socket.on('isGamemaster', () => {
+            socket.on('isGamemaster', (isGameMaster) => {
                 //roomRef call
+                roomRef.current.setIsGameMasterEvent(isGameMaster);
             });
     
             socket.on('setGamemaster', (gameMaster) => {
                 roomRef.current.setGameMasterEvent(gameMaster);
+            });
+
+            socket.on('showQuestion', (question) => {
+                roomRef.current.showQuestionEvent(question);
+            });
+
+            socket.on('setSubmissions', (submissions) => {
+                roomRef.current.setSubmissionsEvent(submissions);
             });
         });
     }, []);
@@ -41,10 +52,11 @@ function App() {
 
         socket.emit('setUsername', newUsername, (isSuccess) => {
             if(isSuccess === false) {
-                return `Could not create username ${newUsername}!`;
+                logEntry(`Could not create username ${newUsername}!`);
+                return;
             }
     
-            return `Created username ${newUsername}!`;
+            //logEntry(`Created username ${newUsername}!`);
         });
     
         setUsername(newUsername);
@@ -52,32 +64,35 @@ function App() {
 
     function changeRoomId(event) {
         const newRoomId = event.target.value;
-        setRoomId(newRoomId);
+        setRoomIdInput(newRoomId);
     }
 
     function createRoom(event) {
         const MAX_ROOM_ID = 100;
-        let roomId = Math.floor(Math.random() * MAX_ROOM_ID).toString();
+        const roomId = Math.floor(Math.random() * MAX_ROOM_ID).toString();
 
-        socket.emit('createRoom', roomId, isSuccess => {
+        socket.emit('createRoom', roomId, (isSuccess) => {
             if(isSuccess === false) {
-                return `Could not create room ${roomId}!`;
+                logEntry(`Could not create room ${roomId}!`);
+                return;
             }
 
             setRoomId(roomId);
-            return `Created room ${roomId}!`;
+            logEntry(`Created room ${roomId}!`);
         });
     }
 
     function joinRoom(event) {
-        if(roomId == "") return;
+        if(roomIdInput == "") return;
 
-        socket.emit('joinRoom', roomId, isSuccess => {
+        socket.emit('joinRoom', roomIdInput, (isSuccess) => {
             if(isSuccess === false) {
-                return `Could not join room ${roomId}!`;
+                logEntry(`Could not join room ${roomIdInput}!`);
+                return;
             }
     
-            return `Joined room ${roomId}!`;
+            setRoomId(roomIdInput);
+            logEntry(`Joined room ${roomIdInput}!`);
         });
     }
 
@@ -102,7 +117,7 @@ function App() {
             </div>
         </section>
 
-       <Room ref={roomRef} log={log} username={username} roomId={roomId}/>
+       <Room ref={roomRef} logEntry={logEntry} username={username} roomId={roomId}/>
 
         <section className="main-container">
             <div id="log">
@@ -121,11 +136,14 @@ const Room = React.forwardRef((props, ref) => {
     //expose functions so parent can call them
     React.useImperativeHandle(ref, () => ({
         setUsersEvent,
-        setGameMasterEvent
+        setGameMasterEvent,
+        setIsGameMasterEvent,
+        showQuestionEvent,
+        setSubmissionsEvent
     }));
 
     //props variables
-    const [log, setLog] = React.useState(props.log);
+    const logEntry = props.logEntry;
     const roomId = props.roomId;
     const username = props.username;
 
@@ -134,6 +152,9 @@ const Room = React.forwardRef((props, ref) => {
     const [gameMaster, setGameMaster] = React.useState(null);
     const [isGameMaster, setIsGameMaster] = React.useState(false);
     const [question, setQuestion] = React.useState(null);
+    const [isShowQuestion, setIsShowQuestion] = React.useState(false);
+    const [prompt, setPrompt] = React.useState(null);
+    const [submissions, setSubmissions] = React.useState([]);
 
     function setUsersEvent(users) {
         setUsers(users);
@@ -143,18 +164,59 @@ const Room = React.forwardRef((props, ref) => {
         setGameMaster(gameMaster);
     }
 
-    function leaveRoom(event) {
-        const message = events.leaveRoom(socket, roomId, setRoomId);
-        setLog([...log, message]);
+    function setIsGameMasterEvent(isGameMaster) {
+        setIsGameMaster(isGameMaster);
+    }
+
+    function showQuestionEvent(question) {
+        setQuestion(question);
+        setIsShowQuestion(true);
+    }
+
+    function setSubmissionsEvent(submissions) {
+        setSubmissions(submissions);
     }
 
     function changeQuestion(event) {
         setQuestion(event.target.value);
     }
 
+    function changePrompt(event) {
+        setPrompt(event.target.value);
+    }
+
+    function leaveRoom(event) {
+        socket.emit('leaveRoom', (isSuccess) => {
+            if(isSuccess === false) {
+                logEntry(`Could not leave room ${roomId}!`);
+                return;
+            }
+    
+            //setRoomId(null);
+            logEntry(`Left room ${roomId}!`);
+        });
+    }
+
     function submitQuestion(event) {
-        const message = events.showQuestion(socket, question);
-        setLog([...log, message]);
+        socket.emit('submitQuestion', question, (isSuccess) => {
+            if(isSuccess === false) {
+                logEntry(`Could not show question ${question}!`);
+                return;
+            }
+    
+            logEntry(`Showing question ${question}!`);
+        });
+    }
+
+    function submitPrompt(event) {
+        socket.emit('submitPrompt', prompt, (isSuccess) => {
+            if(isSuccess === false) {
+                logEntry(`Could not submit prompt "${prompt}"!`);
+                return;
+            }
+
+            logEntry(`Submitted prompt "${prompt}"!`);
+        });
     }
 
     return (
@@ -173,7 +235,14 @@ const Room = React.forwardRef((props, ref) => {
                 </ul>
             </div>
 
-            {isGameMaster 
+            {isShowQuestion ? 
+                <div className="flex-container">
+                    <p>{question}</p>
+                    <input onChange={changePrompt} type="text" placeholder="Enter prompt"></input>
+                    <button onClick={submitPrompt}>Submit</button>
+                    <p>{submissions.length} / {users.length} Submissions</p>
+                </div> : 
+                (isGameMaster 
             ? <div className="flex-container">
                 <h3>You are the game master!</h3>
                 <input onChange={changeQuestion} type="text" placeholder="Enter question"></input>
@@ -181,7 +250,16 @@ const Room = React.forwardRef((props, ref) => {
             </div>
             : <div className="flex-container">
                 <h3>Wait for the game master, {gameMaster}!</h3>
+            </div>)}
+
+            {submissions.length >= users.length &&
+            <div className="flex-container">
+                <p>Submissions:</p>
+                {submissions.map((submission, key) => {
+                    return <p key={key}>{submission}</p>
+                })}
             </div>}
+
             <button onClick={leaveRoom}>Leave Room</button>
         </section>
     );

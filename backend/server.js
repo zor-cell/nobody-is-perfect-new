@@ -1,14 +1,25 @@
 const { Server } = require("socket.io");
 
-let gameMaster = null;
-
 const io = new Server(5100, {
     cors: {
         origin: ['http://localhost:8080', 'http://127.0.0.1:5000'],
     }
 });
 
+class Room {
+    constructor() {
+        this.active = false;
+        this.gameMaster = null;
+        this.submissions = [];
+    }
+}
+const RoomConfig = new Map(); //[roomId, Room]
+
 io.on("connection", socket => {
+    socket.data = {
+        username: "", //socket username
+    }
+
     socket.on('setUsername', (username, isSuccessCB) => {
         //set username
         socket.data.username = username;
@@ -27,10 +38,13 @@ io.on("connection", socket => {
         //update users in room
         io.sockets.in(roomId).emit('setUsers', getUsersInRoom(roomId));
 
-        //set gamemaster
-        gameMaster = socket;
-        socket.emit('isGamemaster');
-        io.sockets.in(roomId).emit('setGamemaster', gameMaster.data.username);
+        //create room stored on server
+        const room = new Room();
+        room.gameMaster = socket;
+        RoomConfig.set(roomId, room);
+
+        socket.emit('isGamemaster', true);
+        io.sockets.in(roomId).emit('setGamemaster', RoomConfig.get(roomId).gameMaster.data.username);
 
         isSuccessCB(true);
     });
@@ -44,7 +58,7 @@ io.on("connection", socket => {
 
         socket.join(roomId);
         io.sockets.in(roomId).emit('setUsers', getUsersInRoom(roomId));
-        io.sockets.in(roomId).emit('setGamemaster', gameMaster.data.username);
+        io.sockets.in(roomId).emit('setGamemaster', RoomConfig.get(roomId).gameMaster.data.username);
 
         isSuccessCB(true);
     });
@@ -61,6 +75,32 @@ io.on("connection", socket => {
         io.sockets.in(roomId).emit('setUsers', getUsersInRoom(roomId));
 
         isSuccessCB(true);
+    });
+
+    socket.on('submitQuestion', (question, isSuccessCB) => {
+        //error handling maybe
+        const rooms = [...socket.rooms];
+        const roomId = rooms[1];
+
+        io.sockets.in(roomId).emit('showQuestion', question);
+        isSuccessCB(true);
+    });
+
+    socket.on('submitPrompt', (prompt, isSuccessCB) => {
+        //store all prompts
+        //send back amount of prompts submitted
+        isSuccessCB(false);
+
+        socket.data.prompt = prompt;
+        console.log("socket data:", socket.data);
+
+        //add prompt to room submissions
+        const rooms = [...socket.rooms];
+        const roomId = rooms[1];
+        RoomConfig.get(roomId).submissions.push(prompt);
+
+        //show amount of submissions
+        io.sockets.in(roomId).emit('setSubmissions', RoomConfig.get(roomId).submissions);
     });
 });
 
